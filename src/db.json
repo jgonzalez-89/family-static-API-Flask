@@ -1,0 +1,23 @@
+[
+  {
+    "id": 2351547,
+    "first_name": "John",
+    "last_name": "Jackson",
+    "age": 33,
+    "lucky_numbers": [7, 13, 22]
+  },
+  {
+    "age": 35,
+    "first_name": "Jane",
+    "last_name": "Jackson",
+    "lucky_numbers": [10, 14, 3],
+    "id": 4177904
+  },
+  {
+    "age": 5,
+    "first_name": "Jimmy",
+    "last_name": "Jackson",
+    "lucky_numbers": [1],
+    "id": 75902
+  }
+]
