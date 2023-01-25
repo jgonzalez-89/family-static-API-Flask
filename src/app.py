@@ -76,6 +76,7 @@ family = Family()
 def hello_world():
     return jsonify(family.get_family())
 
+
 @app.route('/member/<int:id>', methods=['GET'])
 def get_member(id):
     member = next((m for m in family.get_family() if m['id'] == id), None)
