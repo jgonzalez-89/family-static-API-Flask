@@ -1,111 +1,65 @@
 import os
 from flask import Flask, request, jsonify, url_for
 from flask_cors import CORS
-from typing import TypedDict
-import json
-# import uuid
-import random
+from utils import APIException, generate_sitemap
+from datastructures import Family
 
+# Creación de una instancia de la aplicación Flask
 app = Flask(__name__)
-CORS(
-    app,
-    resources={
-        r"/*": {
-            "origins": "*",
-            "headers": "content-type",
-            "Access-Control-Allow-Methods": "*"
-        }
-    }
-)
+# Deshabilitar el uso de barras diagonales en las URLs
+app.url_map.strict_slashes = False
+# Habilitar CORS para permitir solicitudes desde orígenes externos
+CORS(app)
 
+# Creación de una instancia de la clase Family
+family = Family("Jackson")
 
-def generate_random_id():
-    return random.randint(1, 9999999)
+# Manejador de errores personalizado para las excepciones de la clase APIException
+@app.errorhandler(APIException)
+def handle_invalid_usage(error):
+    return jsonify(error.to_dict()), error.status_code
 
-# def generate_random_id() -> str:
-#     return str(uuid.uuid4())
+# Ruta para generar el mapa del sitio
+@app.route('/')
+def sitemap():
+    return generate_sitemap(app)
 
+# Ruta para obtener todos los miembros de la familia
+@app.route('/members', methods=['GET'])
+def get_all_members():
+    return jsonify(family.get_all_members() if family.get_all_members()
+                   != None else {"message": "Not Found"}), 200 if family.get_all_members() != None else 400
 
-class FamilyType(TypedDict):
-    id: int
-    first_name: str
-    last_name: str
-    age: int
-    lucky_numbers: list[int]
-
-
-DB_PATH = "src/db.json"
-
-
-class Writter:
-    def read(self) -> list[FamilyType]:
-        with open(DB_PATH, "r") as file:
-            return json.loads(file.read())
-
-    def write(self, family: list[FamilyType]) -> None:
-        with open(DB_PATH, "w") as file:
-            file.write(json.dumps(family))
-
-
-class Family(Writter):
-    def get_family(self) -> list[FamilyType]:
-        return self.read()
-
-    def add_family(self, family: FamilyType) -> None:
-        family['id'] = generate_random_id()
-        t = self.get_family()
-        t.append(family)
-        self.write(t)
-
-    def edit_family(self, family: FamilyType) -> None:
-        ts = self.get_family()
-        for i, t in enumerate(ts):
-            if t['id'] == family['id']:
-                ts[i] = family
-        self.write(ts)
-
-    def remove_family(self, id: int) -> None:
-        ts = list(filter(lambda x: x["id"] != id, self.get_family()))
-        self.write(ts)
-
-
-family = Family()
-
-
-@app.route('/members')
-def hello_world():
-    return jsonify(family.get_family())
-
-
-@app.route('/member/<int:id>', methods=['GET'])
-def get_member(id):
-    member = next((m for m in family.get_family() if m['id'] == id), None)
+# Ruta para obtener un miembros específico de la familia por su id
+@app.route('/member/<int:member_id>', methods=['GET'])
+def get_member_by_id(member_id):
+    member = family.get_member(member_id)
     if member:
-        return jsonify(member)
+        return jsonify(member), 200
     else:
-        return jsonify({"message": "Not Found"})
+        return jsonify({"message": "Not Found"}), 400
 
-
+# Ruta para agregar un nuevo miembro a la familia
 @app.route('/member', methods=['POST'])
-def add_new_family():
-    request_body = request.get_json(force=True)
-    family.add_family(request_body)
-    return jsonify(family.get_family())
+def add_member():
+    request_body = request.json
+    member = {'id': request_body.get('id') or family._generateId(),
+              'first_name': request_body.get('first_name'),
+              'age': request_body.get('age'),
+              'lucky_numbers': request_body.get('lucky_numbers')}
+    if not all(member.values()):
+        return jsonify({"message": "Not Found"}), 400
 
+    response_body = family.add_member(member)
+    return jsonify(response_body), 200
 
-@app.route('/member/<int:id>', methods=['PUT'])
-def put_family(id):
-    request_body = request.get_json(force=True)
-    family.edit_family(request_body)
-    return jsonify(family.get_family())
-
-
-@app.route('/member/<int:position>', methods=['DELETE'])
-def delete_family(position):
-    family.remove_family(id=position)
-    return jsonify(family.get_family())
+# Ruta para eliminar un miembro especifico de la familia por su id
+@app.route('/member/<int:member_id>', methods=['DELETE'])
+def delete_member(member_id):
+    response_body = {"done": family.delete_member(member_id)}
+    return jsonify(response_body), 200 if response_body["done"] else (jsonify({"message": "Not Found"}), 400)
 
 
 if __name__ == '__main__':
-    PORT = int(os.environ.get('PORT', 3000))
+    PORT = int(os.environ.get('PORT', 4000))
     app.run(host='0.0.0.0', port=PORT, debug=True)
